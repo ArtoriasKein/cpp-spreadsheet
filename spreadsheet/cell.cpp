@@ -4,7 +4,6 @@
 #include <iostream>
 #include <string>
 #include <optional>
-//#include <string_view>
 #include <cmath>    // for std::isfinite()
 
 
@@ -49,32 +48,9 @@ void Cell::Set(const std::string& text)
         //impl_ = std::make_unique<FormulaImpl>(formula_text);    // Вместо вспомогательной строки используем итераторы
         impl_ = std::make_unique<FormulaImpl>(sheet_, std::string{ text.begin() + 1, text.end() });
 
-
     }
     catch (...)
     {
-        // Если в ячейку записывают синтаксически некорректную 
-        // формулу, например, "=hd+2-+3((//)(112", реализация должна выбросить 
-        // исключение FormulaException, а значение ячейки не должно измениться.
-        // Это нужно, чтобы в таблице не возникло синтаксически некорректных формул.
-
-        /* ПРАВИЛЬНАЯ РЕАЛИЗАЦИЯ, которая не проходит тесты.
-        * ==================================================
-        * Тесты ошибочно ожидают FormulaException, хотя по заданию
-        * синтаксически правильная формула с некорректной ссылкой должна
-        * выбросить FormulaError #REF! - FormulaError(FormulaError::Category::Ref)
-        * ПРИЧИНА: выброс FormulaException в сгенерированном методе
-        * ParseASTListener::exitCell для некорректных Position, который перебивает
-        * логику работы программы, т.к. вызывается первым, еще из парсера.
-        * 
-        * Соответствующий тикет заведен Аркадием Бабаевым
-        // Выбрасываем #REF!
-        throw FormulaError(FormulaError::Category::Ref);
-        */
-
-        // Выбрасываем исключение FormulaException, которое пропускает тренажер.
-        // Это некорректно с точки зрения логики и задания, 
-        // но тесты настроены именно на такой тип исключения.
         std::string fe_msg = "Formula parsing error"s;
         throw FormulaException(fe_msg);
     }
@@ -101,20 +77,11 @@ std::string Cell::GetText() const
 
 std::vector<Position> Cell::GetReferencedCells() const
 {
-    // Список зависимых ячеек предоставляет конкретный класс-реализация
-    // TODO Тут ошибка. Для новой ячейки impl_==nullptr
     return impl_.get()->IGetReferencedCells();
 }
 
 bool Cell::IsCyclicDependent(const Cell* start_cell_ptr, const Position& end_pos) const
 {
-    /*
-    *  Класс Cell не хранит свои координаты, это опосредованно знает только
-    *  Sheet, который хранит указатели на Cell.
-    *  Также Cell может быть и временной переменной без Position (новая ячейка).
-    *  В то же время для проверки зависимости передается Position конечной ячейки.
-    */
-
     // Проверяем все зависимые ячейки
     for (const auto& referenced_cell_pos : GetReferencedCells())
     {
@@ -156,25 +123,15 @@ bool Cell::IsCyclicDependent(const Cell* start_cell_ptr, const Position& end_pos
     return false;
 }
 
-// Можно реализовать как невиртуальный метод базового класса Impl
-// и перегружать его если нужно (реально нужно только в FormulaImpl)
-// Оставляем виртуальные функции для сохранения гибкости реализации
 void Cell::InvalidateCache()
 {
     impl_->IInvalidateCache();
 }
 
-// Можно реализовать как невиртуальный метод базового класса Impl
-// и перегружать его если нужно (реально нужно только в FormulaImpl)
-// Оставляем виртуальные функции для сохранения гибкости реализации
 bool Cell::IsCacheValid() const
 {
     return impl_->ICached();
 }
-
-
-// ---------------------------------------------
-// Реализация класса EmptyImpl (пустая ячейка)
 
 CellType Cell::EmptyImpl::IGetType() const
 {
@@ -207,9 +164,6 @@ bool Cell::EmptyImpl::ICached() const
 {
     return true;
 }
-
-// ---------------------------------------------
-// Реализация класса TextImpl (текстовая ячейка)
 
 Cell::TextImpl::TextImpl(std::string text)
     : cell_text_(std::move(text))
@@ -260,9 +214,6 @@ bool Cell::TextImpl::ICached() const
     return true;
 }
 
-// ---------------------------------------------
-// Реализация класса FormulaImpl (ячейка с формулой (число или собственно формула))
-
 Cell::FormulaImpl::FormulaImpl(SheetInterface& sheet, std::string formula)
     : sheet_(sheet), formula_(ParseFormula(formula))
 {}
@@ -278,25 +229,16 @@ CellInterface::Value Cell::FormulaImpl::IGetValue() const
     // Все расчеты производим только если кэш невалиден
     if (!cached_value_)
     {
-        // Проверять, что в ячейках, на которые ссылается наша
-        // нет текста, не будем: Formula::Evaluate() сама умеет это делать
-        // и возвращает FormulaError вместо double в случае ошибок.
-
         FormulaInterface::Value result = formula_->Evaluate(sheet_);
         if (std::holds_alternative<double>(result))
         {
             // Вычисление произведено успешно
             if (std::isfinite(std::get<double>(result)))
             {
-                // т.к. result имеет тип variant (FormulaInterface::Value), 
-                // нужно извлечь из него значение типа double, на основе
-                // которого будем возвращать variant CellInterface::Value
                 return std::get<double>(result);
             }
             else
             {
-                // Ошибка вычисления формулы (на этом этапе только 1 вариант бесконечности == деление на ноль)
-                //return FormulaError("#DIV/0!");
                 return FormulaError(FormulaError::Category::Div0);
             }
         }
