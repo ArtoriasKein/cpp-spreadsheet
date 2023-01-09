@@ -13,7 +13,7 @@ using namespace std::literals;
 Sheet::~Sheet()
 {}
 
-void Sheet::SetCell(Position pos, std::string text)
+void Sheet::SetCell(Position pos, const std::string& text)
 {
     // Невалидные позиции не обрабатываем
     if (!pos.IsValid())
