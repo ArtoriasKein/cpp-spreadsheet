@@ -12,7 +12,7 @@ class Sheet : public SheetInterface
 public:
     ~Sheet();
 
-    void SetCell(Position pos, std::string text) override;
+    void SetCell(Position pos, const std::string& text) override;
 
     const CellInterface* GetCell(Position pos) const override;
     CellInterface* GetCell(Position pos) override;
