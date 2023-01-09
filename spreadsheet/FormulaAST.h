@@ -1,5 +1,7 @@
 #pragma once
 
+//#define ANTLR4CPP_STATIC
+
 #include "FormulaLexer.h"
 #include "common.h"
 
@@ -7,32 +9,38 @@
 #include <functional>
 #include <stdexcept>
 
-namespace ASTImpl {
+namespace ASTImpl
+{
 class Expr;
 }
 
-class ParsingError : public std::runtime_error {
+class ParsingError : public std::runtime_error
+{
     using std::runtime_error::runtime_error;
 };
 
-class FormulaAST {
+class FormulaAST
+{
 public:
     explicit FormulaAST(std::unique_ptr<ASTImpl::Expr> root_expr,
-                        std::forward_list<Position> cells);
+                        std::forward_list<Position> cells);   // MODIFIED
     FormulaAST(FormulaAST&&) = default;
     FormulaAST& operator=(FormulaAST&&) = default;
     ~FormulaAST();
 
-    double Execute(/*добавьте нужные аргументы*/ args) const;
-    void PrintCells(std::ostream& out) const;
+    // См. определение FormulaAST::Execute() для подробной информации
+    double Execute(const std::function<double(Position)>& func) const;  //MODIFIED
+    void PrintCells(std::ostream& out) const;  //NEW
     void Print(std::ostream& out) const;
     void PrintFormula(std::ostream& out) const;
 
-    std::forward_list<Position>& GetCells() {
+    std::forward_list<Position>& GetCells()
+    {
         return cells_;
     }
 
-    const std::forward_list<Position>& GetCells() const {
+    const std::forward_list<Position>& GetCells() const
+    {
         return cells_;
     }
 
@@ -42,7 +50,7 @@ private:
     // physically stores cells so that they can be
     // efficiently traversed without going through
     // the whole AST
-    std::forward_list<Position> cells_;
+    std::forward_list<Position> cells_;  // NEW
 };
 
 FormulaAST ParseFormulaAST(std::istream& in);
