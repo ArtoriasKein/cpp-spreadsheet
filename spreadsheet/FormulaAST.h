@@ -1,7 +1,5 @@
 #pragma once
 
-//#define ANTLR4CPP_STATIC
-
 #include "FormulaLexer.h"
 #include "common.h"
 
@@ -48,7 +46,7 @@ private:
     // physically stores cells so that they can be
     // efficiently traversed without going through
     // the whole AST
-    std::forward_list<Position> cells_;  // NEW
+    std::forward_list<Position> cells_;
 };
 
 FormulaAST ParseFormulaAST(std::istream& in);
